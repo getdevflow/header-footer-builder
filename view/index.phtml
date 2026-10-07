@@ -1,0 +1,137 @@
+<?php
+
+use App\Shared\Services\Registry;
+use Plugin\HeaderFooterBuilder\Support\Html;
+use Plugin\HeaderFooterBuilder\Support\Layouts;
+use Plugin\HeaderFooterBuilder\Support\Runtime;
+
+use function App\Shared\Helpers\admin_url;
+use function Codefy\Framework\Helpers\config;
+
+$this->parent('framework::backend/layouts/admin-layout');
+$this->block('backend', function ($params) {
+    Registry::getInstance()->set('screen_parent', 'plugins');
+    Registry::getInstance()->set('screen_child', 'header-footer-builder');
+    $selected = $params['selected'];
+    $rules = $selected['conditions'] ?? ['global' => true];
+    $base = admin_url('plugin/header-footer-builder/');
+    $e = Html::escape(...);
+    $roles = [['id' => 'guest', 'name' => 'Guest (signed out)']];
+    foreach (config()->array('rbac.roles', []) as $key => $role) {
+        $roles[] = ['id' => $key, 'name' => $role['description'] ?? $key];
+    }
+    $targets = [...$params['targets'], 'roles' => $roles];
+?>
+<link rel="stylesheet" href="<?= $e(Runtime::asset('css/admin.css')); ?>">
+<div class="content-wrapper hfb-admin">
+    <section class="content-header"><h1>Header Footer Builder <small>Design with Vihzhuo</small></h1></section>
+    <section class="content">
+        <?php if ($params['saved']): ?><div class="callout callout-success" role="status">Changes saved.</div><?php endif; ?>
+        <div class="row">
+            <div class="col-lg-7">
+                <div class="box box-primary">
+                    <div class="box-header with-border"><h2 class="box-title">Template library</h2><a class="btn btn-default pull-right" href="<?= $e($base); ?>">New template</a></div>
+                    <div class="box-body table-responsive">
+                        <table class="table"><thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+                        <?php foreach ($params['templates'] as $template): ?>
+                            <tr><td><?= $e($template['name']); ?></td><td><?= $e(ucfirst($template['kind'])); ?></td><td><?= $template['published'] ? 'Published' : 'Draft'; ?></td>
+                                <td class="hfb-actions"><a href="<?= $e($base . 'editor/?page=' . rawurlencode($template['id'])); ?>">Design</a>
+                                    <a href="<?= $e($base . '?template=' . rawurlencode($template['id'])); ?>">Conditions</a>
+                                    <a href="<?= $e($base . 'preview/?id=' . rawurlencode($template['id'])); ?>" target="_blank" rel="noopener">Preview</a>
+                                </td></tr>
+                        <?php endforeach; ?>
+                        <?php if (!$params['templates']): ?><tr><td colspan="4">Create your first header, footer, or mega menu template.</td></tr><?php endif; ?>
+                        </tbody></table>
+                    </div>
+                    <div class="box-footer">Published templates appear automatically on matching Vihzhuo pages. Drafts are only visible in the editor and preview.</div>
+                </div>
+                <div class="box box-default">
+                    <div class="box-header with-border"><h2 class="box-title">Navigation menus</h2><a class="btn btn-default pull-right" href="<?= $e($base . '?menu='); ?>#menus">New menu</a></div>
+                    <div class="box-body">
+                        <p>Choose a menu in the Navigation Menu widget. Assign a published mega menu template to any top-level item below.</p>
+                        <ul class="hfb-menu-library">
+                            <?php foreach ($params['menus'] as $menu): ?>
+                                <li><a href="<?= $e($base . '?menu=' . rawurlencode($menu['id'])); ?>#menus"><?= $e($menu['name']); ?></a></li>
+                            <?php endforeach; ?>
+                        </ul>
+                        <?php if ($params['imports']): ?>
+                        <form method="post" action="<?= $e($base . 'menu/import'); ?>" class="form-inline">
+                            <?= csrf_field(); ?><label for="hfb-import">Import from MenuBuilder</label>
+                            <select id="hfb-import" name="source_id" class="form-control">
+                                <?php foreach ($params['imports'] as $import): ?><option value="<?= $e($import['id']); ?>"><?= $e($import['name']); ?></option><?php endforeach; ?>
+                            </select><button class="btn btn-default">Import copy</button>
+                            <p class="help-block">The imported copy can be customized here. Later changes in MenuBuilder do not change this copy.</p>
+                        </form>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="box box-success">
+                    <div class="box-header with-border"><h2 class="box-title"><?= $selected ? 'Template settings & display conditions' : 'Create template'; ?></h2></div>
+                    <form action="<?= $e($base . 'save'); ?>" method="post" class="box-body">
+                        <?= csrf_field(); ?><input type="hidden" name="id" value="<?= $e($selected['id'] ?? ''); ?>">
+                        <div class="form-group"><label for="hfb-name">Name</label><input id="hfb-name" name="name" class="form-control" required maxlength="191" value="<?= $e($selected['name'] ?? ''); ?>"></div>
+                        <div class="form-group"><label for="hfb-kind">Type</label>
+                            <select id="hfb-kind" name="kind" class="form-control"<?= $selected ? ' disabled' : ''; ?>>
+                                <?php foreach (['header' => 'Header', 'footer' => 'Footer', 'mega' => 'Mega menu'] as $key => $label): ?>
+                                <option value="<?= $e($key); ?>"<?= ($selected['kind'] ?? 'header') === $key ? ' selected' : ''; ?>><?= $e($label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if ($selected): ?><input type="hidden" name="kind" value="<?= $e($selected['kind']); ?>"><?php endif; ?>
+                        </div>
+                        <?php if (!$selected): ?>
+                        <div class="form-group"><label for="hfb-layout">Starter layout</label><select id="hfb-layout" name="layout" class="form-control">
+                            <?php foreach (Layouts::choices('header') as $value => $label): ?><option value="<?= $e($value); ?>"><?= $e($label); ?></option><?php endforeach; ?>
+                        </select></div>
+                        <?php endif; ?>
+                        <label class="hfb-check"><input type="checkbox" name="published" value="1"<?= !empty($selected['published']) ? ' checked' : ''; ?>> Published</label>
+                        <label class="hfb-check"><input type="checkbox" name="conditions[global]" value="1"<?= !empty($rules['global']) ? ' checked' : ''; ?>> Entire site</label>
+                        <p class="help-block">Pages and content types add inclusion rules. Role selections restrict who can see the template. Exclusions always take precedence.</p>
+                        <?php foreach (['pages' => 'Include pages', 'content_types' => 'Include content types', 'roles' => 'Visible to roles',
+                            'exclude_pages' => 'Exclude pages', 'exclude_content_types' => 'Exclude content types', 'exclude_roles' => 'Exclude roles'] as $key => $label):
+                            $group = str_replace('exclude_', '', $key);
+                        ?>
+                        <div class="form-group"><label for="hfb-<?= $e($key); ?>"><?= $e($label); ?></label>
+                            <select id="hfb-<?= $e($key); ?>" multiple size="3" name="conditions[<?= $e($key); ?>][]" class="form-control">
+                                <?php foreach ($targets[$group] as $target): ?><option value="<?= $e($target['id']); ?>"<?= in_array((string) $target['id'], $rules[$key] ?? [], true) ? ' selected' : ''; ?>><?= $e($target['name']); ?></option><?php endforeach; ?>
+                            </select>
+                        </div>
+                        <?php endforeach; ?>
+                        <div class="form-group"><label for="hfb-priority">Priority</label><input id="hfb-priority" type="number" min="-1000" max="1000" name="priority" class="form-control" value="<?= $e($selected['priority'] ?? 0); ?>">
+                            <p class="help-block">Higher priority wins. At equal priority, a page match wins over a content type match, then an entire-site template. Mega menus use role restrictions; assignment to a menu item controls placement.</p>
+                        </div>
+                        <button class="btn btn-success" type="submit"><?= $selected ? 'Save settings' : 'Create template'; ?></button>
+                        <?php if ($selected): ?><a class="btn btn-primary" href="<?= $e($base . 'editor/?page=' . rawurlencode($selected['id'])); ?>">Open Vihzhuo editor</a><?php endif; ?>
+                    </form>
+                    <?php if ($selected): ?><form action="<?= $e($base . 'delete'); ?>" method="post" class="box-footer hfb-delete-form">
+                        <?= csrf_field(); ?><input name="id" type="hidden" value="<?= $e($selected['id']); ?>"><button class="btn btn-danger" type="submit">Delete template</button>
+                    </form><?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <div class="box box-primary" id="menus">
+            <div class="box-header with-border"><h2 class="box-title"><?= $params['menu'] ? 'Edit menu: ' . $e($params['menu']['name']) : 'Create navigation menu'; ?></h2></div>
+            <form action="<?= $e($base . 'menu/save'); ?>" method="post" class="box-body" id="hfb-menu-form">
+                <?= csrf_field(); ?><input type="hidden" name="id" value="<?= $e($params['menu']['id'] ?? ''); ?>">
+                <div class="form-group"><label for="hfb-menu-name">Menu name</label><input id="hfb-menu-name" name="name" class="form-control" required maxlength="191" value="<?= $e($params['menu']['name'] ?? ''); ?>"></div>
+                <input type="hidden" name="items_json" id="hfb-items-json">
+                <div id="hfb-menu-items"></div>
+                <button type="button" class="btn btn-default" id="hfb-add-item">Add menu item</button>
+                <button type="submit" class="btn btn-primary">Save menu</button>
+                <p class="help-block">Use Add child for dropdowns, and ↑ / ↓ to reorder. Mega templates can be assigned to top-level items. Custom panel widths accept px, %, vw, or rem.</p>
+            </form>
+            <?php if ($params['menu']): ?><form action="<?= $e($base . 'menu/delete'); ?>" method="post" class="box-footer hfb-delete-form">
+                <?= csrf_field(); ?><input type="hidden" name="id" value="<?= $e($params['menu']['id']); ?>"><button class="btn btn-danger">Delete menu</button>
+            </form><?php endif; ?>
+        </div>
+        <script type="application/json" id="hfb-admin-data"><?= json_encode([
+            'items' => $params['menu']['items'] ?? [],
+            'templates' => array_values(array_map(static fn (array $t): array => ['id' => $t['id'], 'name' => $t['name'] . ($t['published'] ? '' : ' (draft)')],
+                array_filter($params['templates'], static fn (array $t): bool => $t['kind'] === 'mega'))),
+            'layouts' => ['header' => Layouts::choices('header'), 'footer' => Layouts::choices('footer'), 'mega' => Layouts::choices('mega')],
+        ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR); ?></script>
+        <script defer src="<?= $e(Runtime::asset('js/admin.js')); ?>"></script>
+    </section>
+</div>
+<?php }); ?>

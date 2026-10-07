@@ -1,0 +1,29 @@
+{
+    "name": "getdevflow/header-footer-builder",
+    "type": "devflow-plugin",
+    "description": "Vihzhuo headers, footers, widgets, display conditions, and responsive mega menus for Devflow CMS.",
+    "keywords": ["footer-builder","header-builder","devflow-plugin","pagebuilder","page-builder"],
+    "license": "GPL-2.0-only",
+    "authors": [
+        {
+            "name": "Joshua Parker",
+            "email": "joshua@joshuaparker.dev"
+        }
+    ],
+    "require": {
+        "php": ">=8.4",
+        "oomphinc/composer-installers-extender": "^2.0"
+    },
+    "extra": {
+        "installer-name": "HeaderFooterBuilder",
+        "installer-types": ["devflow-plugin"]
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": {
+            "composer/installers": true,
+            "oomphinc/composer-installers-extender": true
+        }
+    }
+}
